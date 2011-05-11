@@ -3,34 +3,73 @@ from pygame import locals
 import sys
 import Image
 
-import opencv
 #this is important for capturing/displaying images
+import opencv
 from opencv import highgui
 
 #GUI
-from pgu import gui
+from pgu import gui as pgui, text
 
 #Velleman board
 from pyk8055 import *
 
-camera = highgui.cvCreateCameraCapture(1)
+#Face detection
+
+camera = highgui.cvCreateCameraCapture(0)
+
+
+def headTrackState(arg):
+    btn, text = arg
+    global headTracking
+    headTracking = btn.value
+
 def get_image():
+    global headTracking
     im = highgui.cvQueryFrame(camera)
     # Add the line below if you need it (Ubuntu 8.04+)
     #im = opencv.cvGetMat(im)
     #convert Ipl image to PIL image
+    if (headTracking): 
+	detect(im)
+	#Also fire servos we need.
     return opencv.adaptors.Ipl2PIL(im)
 
-class DalekControl(gui.Table):
-	def __init__(self,**params):
-		gui.Table.__init__(self,**params)
-		fg=(255,255,255)
- 		self.tr()
-        	self.td(gui.Label("Dalek GUI",color=fg),colspan=2)
+def detect(image):
+    # Find out how large the file is, as the underlying C-based code
+    # needs to allocate memory in the following steps
+    image_size = opencv.cvGetSize(image)
+    scale=8
+    # create grayscale version - this is also the point where the allegation about
+    # facial recognition being racist might be most true. A caucasian face would have more
+    # definition on a webcam image than an African face when greyscaled.
+    # I would suggest that adding in a routine to overlay edge-detection enhancements may
+    # help, but you would also need to do this to the training images as well.
+    grayscale = opencv.cvCreateImage(image_size, 8, 1)
+    opencv.cvCvtColor(image, grayscale, opencv.CV_BGR2GRAY)
+    thumbnail = opencv.cvCreateImage(opencv.cvSize(grayscale.width/scale,grayscale.height/scale),8,1)
+    opencv.cvResize(grayscale,thumbnail)
+    # create storage (It is C-based so you need to do this sort of thing)
+    storage = opencv.cvCreateMemStorage(0)
+    opencv.cvClearMemStorage(storage)
+
+    # equalize histogram
+    opencv.cvEqualizeHist(grayscale, grayscale)
+
+    # detect objects - Haar cascade step
+    # In this case, the code uses a frontal_face cascade - trained to spot faces that look directly
+    # at the camera. In reality, I found that no bearded or hairy person must have been in the training
+    # set of images, as the detection routine turned out to be beardist as well as a little racist!
+    cascade = opencv.cvLoadHaarClassifierCascade('haarcascade_frontalface_default.xml', opencv.cvSize(1,1))
+
+    faces = opencv.cvHaarDetectObjects(thumbnail, cascade, storage, 1.2, 2, opencv.CV_HAAR_DO_CANNY_PRUNING, opencv.cvSize(10,10))
+
+    if faces.total > 0:
+        for face in faces:
+            # Hmm should I do a min-size check?
+            opencv.cvRectangle(image, opencv.cvPoint( int(face.x) *scale, int(face.y*scale)),opencv.cvPoint(int(face.x + face.width)*scale, int(face.y + face.height)*scale), opencv.CV_RGB(127, 255, 0), 2) # RGB #7FFF00 width=2
 
 
-
-
+headTracking=False
 fps = 30.0
 pygame.init()
 window = pygame.display.set_mode((0,0),pygame.FULLSCREEN)
@@ -38,14 +77,24 @@ pygame.display.set_caption("DalekCam")
 screen = pygame.display.get_surface()
 
 pygame.joystick.init()
+fontBig = pygame.font.SysFont("default", 48)
+fg=(255,255,255)
+gui = pgui.App()
+lo=pgui.Container(width=1024,height=600)
+title = pgui.Label("Dalek Controller", color=fg, font=fontBig)
+lo.add(title,700,10)
 
-form = gui.Form()
-app = gui.App()
-dalekCtrl = DalekControl()
-c=gui.Container(align=-1,valign=-1)
-c.add(dalekCtrl,700,30)
+cbt = pgui.Table()
+cb1 = pgui.Switch()
+cb1.connect(pgui.CHANGE, headTrackState, (cb1, "Head Tracking"))
+cb1l = pgui.Label("Enable Head Tracking",color=fg)
+cbt.add(cb1)
+cbt.add(cb1l)
+cbt.tr()
+lo.add(cbt,750,60)
 
-app.init(c)
+
+gui.init(lo)
 
 try:
 	j=pygame.joystick.Joystick(0)
@@ -77,17 +126,19 @@ while not done:
 		elif e.type == pygame.locals.JOYBUTTONDOWN:
 			if e.button ==2 :
 				k.WriteAllDigital(1)
+				#Enable Head Tracking
+				cb1.click()
 			if e.button == 3:
 				k.WriteAllDigital(2)	
 		elif e.type == pygame.locals.JOYBUTTONUP:
 			print 'buttonup'
 		else:
-			app.event(e) #pass it to the GUI
+			gui.event(e) #pass it to the GUI
 
 	im = get_image()
 	pg_img = pygame.image.frombuffer(im.tostring(), im.size, im.mode)
 	screen.blit(pg_img, (0,0))
-	app.paint()
+	gui.paint()
 	pygame.display.flip()
 	pygame.time.delay(int(1000 * 1.0/fps))
 
