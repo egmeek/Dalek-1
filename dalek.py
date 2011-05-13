@@ -2,6 +2,7 @@ import pygame
 from pygame import locals
 import sys
 import Image
+import time
 
 #this is important for capturing/displaying images
 import opencv
@@ -13,10 +14,36 @@ from pgu import gui as pgui, text
 #Velleman board
 from pyk8055 import *
 
-#Face detection
+#Buttons on wheel:
+#0: X
+#1: O
+#2: SQUARE
+#3: TRIANGLE
+#4: Topleft, unmarked
 
 camera = highgui.cvCreateCameraCapture(0)
 
+def playSound(fileName):
+	if not pygame.mixer.music.get_busy():
+		pygame.mixer.music.load(fileName)
+		pygame.mixer.music.play(1)
+
+def open_file_browser(guiInput):
+    d = pgui.FileDialog()
+    d.connect(pgui.CHANGE, handle_file_browser_closed, d,guiInput)
+    d.open()
+
+
+def handle_file_browser_closed(dlg, guiInput):
+    if dlg.value: guiInput.value = dlg.value
+
+
+
+
+def sendSignal(signalCode):
+    #Flashes signal to Veleman
+    k.WriteAllDigital(signalCode)
+    k.WriteAllDigital(0)
 
 def headTrackState(arg):
     btn, text = arg
@@ -77,6 +104,8 @@ pygame.display.set_caption("DalekCam")
 screen = pygame.display.get_surface()
 
 pygame.joystick.init()
+
+#Set up the GUI
 fontBig = pygame.font.SysFont("default", 48)
 fg=(255,255,255)
 gui = pgui.App()
@@ -92,6 +121,30 @@ cbt.add(cb1)
 cbt.add(cb1l)
 cbt.tr()
 lo.add(cbt,750,60)
+
+#Choose MP3s
+t = pgui.Table()
+t.tr()
+td_style = {'padding_right': 10, 'color':fg}
+t.td( pgui.Label('Top Left Sound File:',color=fg) , style=td_style)
+input_file_1 = pgui.Input()
+t.td( input_file_1, style=td_style )
+b = pgui.Button("Browse...")
+t.td( b, style=td_style )
+input_file_1.value="./ext1.mp3"
+b.connect(pgui.CLICK, open_file_browser, input_file_1)
+
+t.tr()
+t.td( pgui.Label('Top Right Sound File:',color=fg) , style=td_style)
+input_file_2 = pgui.Input()
+t.td( input_file_2, style=td_style )
+b2 = pgui.Button("Browse...")
+t.td( b2, style=td_style )
+b2.connect(pgui.CLICK, open_file_browser, input_file_2)
+input_file_2.value="./dalek-doctor.mp3"
+lo.add(t,550,500)
+
+
 
 
 gui.init(lo)
@@ -111,7 +164,6 @@ except IOError:
 done=False
 while not done:
 	for e in pygame.event.get():
-		print e
 		if e.type is pygame.locals.QUIT:
 			done=True
 		elif e.type is pygame.locals.KEYDOWN and e.key == pygame.locals.K_ESCAPE:
@@ -124,12 +176,20 @@ while not done:
 		elif e.type == pygame.locals.JOYHATMOTION:
 			print 'hatmotion'
 		elif e.type == pygame.locals.JOYBUTTONDOWN:
-			if e.button ==2 :
-				k.WriteAllDigital(1)
+			if e.button ==0 :
+				sendSignal(22)
+			elif e.button == 1:
 				#Enable Head Tracking
 				cb1.click()
-			if e.button == 3:
-				k.WriteAllDigital(2)	
+			elif e.button == 2:
+				sendSignal(58)
+			elif e.button == 3:
+				sendSignal(2)	
+
+			elif e.button == 4:
+				playSound(input_file_1.value)
+			elif e.button == 5:
+				playSound(input_file_2.value)
 		elif e.type == pygame.locals.JOYBUTTONUP:
 			print 'buttonup'
 		else:
@@ -137,6 +197,7 @@ while not done:
 
 	im = get_image()
 	pg_img = pygame.image.frombuffer(im.tostring(), im.size, im.mode)
+	screen.fill((0,0,0))
 	screen.blit(pg_img, (0,0))
 	gui.paint()
 	pygame.display.flip()
