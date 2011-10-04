@@ -5,8 +5,11 @@ import Image
 import time
 
 #this is important for capturing/displaying images
-import opencv
-from opencv import highgui
+import numpy as np
+import cv2
+import cv2.cv as cv
+from video import create_capture
+from common import clock, draw_str
 
 #GUI
 from pgu import gui as pgui, text
@@ -21,7 +24,7 @@ from pyk8055 import *
 #3: TRIANGLE
 #4: Topleft, unmarked
 
-camera = highgui.cvCreateCameraCapture(0)
+camera = create_capture(0)
 
 def playSound(fileName):
 	if not pygame.mixer.music.get_busy():
@@ -52,51 +55,30 @@ def headTrackState(arg):
 
 def get_image():
     global headTracking
-    im = highgui.cvQueryFrame(camera)
+    ret, im = camera.read()
     # Add the line below if you need it (Ubuntu 8.04+)
     #im = opencv.cvGetMat(im)
     #convert Ipl image to PIL image
-    if (headTracking): 
-	detect(im)
+#    if (headTracking): 
+#	detect(im)
 	#Also fire servos we need.
-    return opencv.adaptors.Ipl2PIL(im)
+    im_rgb=cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+    cv_img=cv.fromarray(im_rgb)
+    return cv_img
 
-def detect(image):
-    # Find out how large the file is, as the underlying C-based code
-    # needs to allocate memory in the following steps
-    image_size = opencv.cvGetSize(image)
-    scale=8
-    # create grayscale version - this is also the point where the allegation about
-    # facial recognition being racist might be most true. A caucasian face would have more
-    # definition on a webcam image than an African face when greyscaled.
-    # I would suggest that adding in a routine to overlay edge-detection enhancements may
-    # help, but you would also need to do this to the training images as well.
-    grayscale = opencv.cvCreateImage(image_size, 8, 1)
-    opencv.cvCvtColor(image, grayscale, opencv.CV_BGR2GRAY)
-    thumbnail = opencv.cvCreateImage(opencv.cvSize(grayscale.width/scale,grayscale.height/scale),8,1)
-    opencv.cvResize(grayscale,thumbnail)
-    # create storage (It is C-based so you need to do this sort of thing)
-    storage = opencv.cvCreateMemStorage(0)
-    opencv.cvClearMemStorage(storage)
+#def detect(img, cascade):
+#    rects = cascade.detectMultiScale(img, scaleFactor=1.3, minNeighbors=4, minSize=(30, 30), flags = cv.CV_HAAR_SCALE_IMAGE)
+#    if len(rects) == 0:
+#        return []
+#    rects[:,2:] += rects[:,:2]
+#    return rects
 
-    # equalize histogram
-    opencv.cvEqualizeHist(grayscale, grayscale)
-
-    # detect objects - Haar cascade step
-    # In this case, the code uses a frontal_face cascade - trained to spot faces that look directly
-    # at the camera. In reality, I found that no bearded or hairy person must have been in the training
-    # set of images, as the detection routine turned out to be beardist as well as a little racist!
-    cascade = opencv.cvLoadHaarClassifierCascade('haarcascade_frontalface_default.xml', opencv.cvSize(1,1))
-
-    faces = opencv.cvHaarDetectObjects(thumbnail, cascade, storage, 1.2, 2, opencv.CV_HAAR_DO_CANNY_PRUNING, opencv.cvSize(10,10))
-
-    if faces.total > 0:
-        for face in faces:
-            # Hmm should I do a min-size check?
-            opencv.cvRectangle(image, opencv.cvPoint( int(face.x) *scale, int(face.y*scale)),opencv.cvPoint(int(face.x + face.width)*scale, int(face.y + face.height)*scale), opencv.CV_RGB(127, 255, 0), 2) # RGB #7FFF00 width=2
+def draw_rects(img, rects, color):
+    for x1, y1, x2, y2 in rects:
+        cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
 
 
-headTracking=False
+
 fps = 30.0
 pygame.init()
 window = pygame.display.set_mode((0,0),pygame.FULLSCREEN)
@@ -196,7 +178,7 @@ while not done:
 			gui.event(e) #pass it to the GUI
 
 	im = get_image()
-	pg_img = pygame.image.frombuffer(im.tostring(), im.size, im.mode)
+	pg_img = pygame.image.frombuffer(im.tostring(), cv.GetSize(im), "RGB")
 	screen.fill((0,0,0))
 	screen.blit(pg_img, (0,0))
 	gui.paint()
