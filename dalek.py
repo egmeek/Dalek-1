@@ -55,23 +55,27 @@ def headTrackState(arg):
 
 def get_image():
     global headTracking
+    global cascade    
     ret, im = camera.read()
-    # Add the line below if you need it (Ubuntu 8.04+)
-    #im = opencv.cvGetMat(im)
-    #convert Ipl image to PIL image
-#    if (headTracking): 
-#	detect(im)
-	#Also fire servos we need.
+    t = clock()
+    if (headTracking):
+        grey = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        grey = cv2.equalizeHist(grey)
+	rects = detect(grey, cascade)
+        draw_rects(im, rects, (0,255,0))
+	#TODO: Also fire servos we need.
+    dt = clock() - t
+    draw_str(im, (20,20), 'Latency: %.4f ms' % (dt*1000))
     im_rgb=cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
     cv_img=cv.fromarray(im_rgb)
     return cv_img
 
-#def detect(img, cascade):
-#    rects = cascade.detectMultiScale(img, scaleFactor=1.3, minNeighbors=4, minSize=(30, 30), flags = cv.CV_HAAR_SCALE_IMAGE)
-#    if len(rects) == 0:
-#        return []
-#    rects[:,2:] += rects[:,:2]
-#    return rects
+def detect(img, cascade):
+    rects = cascade.detectMultiScale(img, scaleFactor=1.3, minNeighbors=4, minSize=(30, 30), flags = cv.CV_HAAR_SCALE_IMAGE)
+    if len(rects) == 0:
+        return []
+    rects[:,2:] += rects[:,:2]
+    return rects
 
 def draw_rects(img, rects, color):
     for x1, y1, x2, y2 in rects:
@@ -126,6 +130,11 @@ b2.connect(pgui.CLICK, open_file_browser, input_file_2)
 input_file_2.value="./dalek-doctor.mp3"
 lo.add(t,550,500)
 
+#Load information about face detection.
+
+cascade_fn = "./haarcascade_frontalface_alt.xml"
+cascade = cv2.CascadeClassifier(cascade_fn)
+headTracking=False
 
 
 
