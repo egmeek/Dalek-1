@@ -17,6 +17,9 @@ from pgu import gui as pgui, text
 #Velleman board
 from pyk8055 import *
 
+#Arduino - only one of this and Velleman will be used. Probably...
+import pyduino
+
 #Buttons on wheel:
 #0: X
 #1: O
@@ -41,12 +44,17 @@ def handle_file_browser_closed(dlg, guiInput):
     if dlg.value: guiInput.value = dlg.value
 
 
+def sendSignalVelleman(signalCode):
+    k.WriteAllDigital(signalCode)
+    k.WriteAllDigital(0)
 
+def sendSignalArduino(signalCode):
+    print signalCode
 
 def sendSignal(signalCode):
     #Flashes signal to Veleman
-    k.WriteAllDigital(signalCode)
-    k.WriteAllDigital(0)
+    sendSignalVelleman(signalCode)
+
 
 def headTrackState(arg):
     btn, text = arg
