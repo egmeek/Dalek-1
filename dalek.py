@@ -89,6 +89,24 @@ def draw_rects(img, rects, color):
     for x1, y1, x2, y2 in rects:
         cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
 
+def set_pin_mode(arduino, pin):
+    if mode == 1:
+        #Digital input
+        arduino.digital_ports[pin >> 3].set_active(1)
+        arduino.digital[pin].set_mode(pyduino.DIGITAL_INPUT)
+    if mode == 2:
+        #Digital output
+        arduino.digital_ports[pin >> 3].set_active(1)
+        arduino.digital[pin].set_mode(pyduino.DIGITAL_OUTPUT)
+        arduino.digital[pin].write(1)    #Turn output high
+    if mode == 3:
+        #Digital PWM
+        arduino.digital_ports[pin >> 3].set_active(1)
+        arduino.digital[pin].set_mode(pyduino.DIGITAL_PWM)
+    if mode == 4:
+        #Analog in
+        arduino.analog[pin].set_active(1)
+
 
 
 fps = 30.0
@@ -161,6 +179,7 @@ except IOError:
 	print 'could not find K8055 board'
 
 done=False
+
 while not done:
 	for e in pygame.event.get():
 		if e.type is pygame.locals.QUIT:
