@@ -182,6 +182,7 @@ try:
 	set_pin_mode(arduino, 13, 2) #Set pin 13 to digital output. Useful for testing, as this pin has a LED on it.
 except IOError:
 	print 'could not find Arduino'
+	arduino=None
 
 done=False
 value=0
@@ -193,8 +194,9 @@ while not done:
 		elif e.type is pygame.locals.KEYDOWN and e.key == pygame.locals.K_ESCAPE:
 			done=True
 		elif e.type is pygame.locals.KEYDOWN and e.key == pygame.locals.K_SPACE:
-			value = -1 * (value-1)
-                        arduino.digital[13].write(value)
+			if arduino is not None:
+				value = -1 * (value-1)
+                        	arduino.digital[13].write(value)
 				
 		elif e.type == pygame.locals.JOYAXISMOTION:
 			x,y = j.get_axis(0), j.get_axis(1)
