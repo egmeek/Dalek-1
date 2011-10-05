@@ -89,7 +89,7 @@ def draw_rects(img, rects, color):
     for x1, y1, x2, y2 in rects:
         cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
 
-def set_pin_mode(arduino, pin):
+def set_pin_mode(arduino, pin, mode):
     if mode == 1:
         #Digital input
         arduino.digital_ports[pin >> 3].set_active(1)
@@ -177,15 +177,25 @@ try:
 	k=k8055(0)
 except IOError:
 	print 'could not find K8055 board'
+try:
+	arduino = pyduino.Arduino("/dev/ttyUSB0")
+	set_pin_mode(arduino, 13, 2) #Set pin 13 to digital output. Useful for testing, as this pin has a LED on it.
+except IOError:
+	print 'could not find Arduino'
 
 done=False
+value=0
 
 while not done:
 	for e in pygame.event.get():
 		if e.type is pygame.locals.QUIT:
 			done=True
 		elif e.type is pygame.locals.KEYDOWN and e.key == pygame.locals.K_ESCAPE:
-			done=True	
+			done=True
+		elif e.type is pygame.locals.KEYDOWN and e.key == pygame.locals.K_SPACE:
+			value = -1 * (value-1)
+                        arduino.digital[13].write(value)
+				
 		elif e.type == pygame.locals.JOYAXISMOTION:
 			x,y = j.get_axis(0), j.get_axis(1)
 			print 'x and y : ' + str(x) + ' , ' + str(y)
