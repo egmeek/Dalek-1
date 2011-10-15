@@ -1,1 +1,3 @@
 Code for controlling our Dalek - which means receiving data from a WebCam and Xbox steering wheel, and sending outputs to what is currently a Velleman K8055 output board.
+
+Note that you need to be running xboxdrv (probably as root) for the Xbox controller to be picked up.
