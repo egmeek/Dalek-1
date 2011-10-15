@@ -27,7 +27,12 @@ import pyduino
 #3: TRIANGLE
 #4: Topleft, unmarked
 
-camera = create_capture(0)
+#There should be a USB camera, but if not use the webcam.
+try:
+	camera = create_capture(1)
+    	ret, im = camera.read()
+except:
+	camera = create_capture(0)
 
 def playSound(fileName):
 	if not pygame.mixer.music.get_busy():
@@ -177,9 +182,22 @@ try:
 	k=k8055(0)
 except IOError:
 	print 'could not find K8055 board'
+	k=None
+
+
+#Define arduino Pins
+
+TESTPIN = 13
+HEAD_DIRECTION = 10
+HEAD_POWER = 11
+EYE_DIRECTION = 12
+EYE_POWER = 13
+
 try:
 	arduino = pyduino.Arduino("/dev/ttyUSB0")
-	set_pin_mode(arduino, 13, 2) #Set pin 13 to digital output. Useful for testing, as this pin has a LED on it.
+	set_pin_mode(arduino, TESTPIN, 2) #Set pin 13 to digital output. Useful for testing, as this pin has a LED on it.
+	set_pin_mode(arduino, HEAD_DIRECTION, 2) #Set pin 13 to digital output. Useful for testing, as this pin has a LED on it.
+	set_pin_mode(arduino, HEAD_POWER, 2) #Set pin 13 to digital output. Useful for testing, as this pin has a LED on it.
 except IOError:
 	print 'could not find Arduino'
 	arduino=None
@@ -197,30 +215,66 @@ while not done:
 			if arduino is not None:
 				value = -1 * (value-1)
                         	arduino.digital[13].write(value)
-				
 		elif e.type == pygame.locals.JOYAXISMOTION:
 			x,y = j.get_axis(0), j.get_axis(1)
-			print 'x and y : ' + str(x) + ' , ' + str(y)
+			#print 'x and y : ' + str(x) + ' , ' + str(y)
 		elif e.type == pygame.locals.JOYBALLMOTION:
 			print 'ballmotion'
 		elif e.type == pygame.locals.JOYHATMOTION:
-			print 'hatmotion'
+			#We end up here whether we are pushing or releasing
+			#The hat controls eye up/down and head left/right.
+			
+			if e.value[0] == -1:
+				#Set head flag to turn left
+				arduino.digital[HEAD_DIRECTION].write(0)
+				#Apply power
+				arduino.digital[HEAD_POWER].write(1)
+			elif e.value[0] == 1:
+				#Head right		
+				arduino.digital[HEAD_DIRECTION].write(1)
+				#Apply power
+				arduino.digital[HEAD_POWER].write(1)
+			else:
+				#Turn off power
+				arduino.digital[HEAD_POWER].write(0)
+				
+			if e.value[1] == -1:
+				#Set eye flag to go down
+				arduino.digital[EYE_DIRECTION].write(0)
+				#Apply power
+				arduino.digital[EYE_POWER].write(1)
+			elif e.value[1] == 1:
+				#Eye up	
+				arduino.digital[EYE_DIRECTION].write(1)
+				#Apply power
+				arduino.digital[EYE_POWER].write(1)
+			else:
+				#Turn off power
+				arduino.digital[EYE_POWER].write(0)
+				
+
 		elif e.type == pygame.locals.JOYBUTTONDOWN:
 			if e.button ==0 :
 				sendSignal(22)
 			elif e.button == 1:
+				print "pie"
 				#Enable Head Tracking
-				cb1.click()
+				#cb1.click()
 			elif e.button == 2:
-				sendSignal(58)
-			elif e.button == 3:
-				sendSignal(2)	
+				if arduino is not None:
+                        		arduino.digital[13].write(1)
+		#	elif e.button == 3:
+		#		sendSignal(2)	
 
 			elif e.button == 4:
 				playSound(input_file_1.value)
 			elif e.button == 5:
 				playSound(input_file_2.value)
 		elif e.type == pygame.locals.JOYBUTTONUP:
+			if e.button == 2:
+				if arduino is not None:
+					value = -1 * (value-1)
+                        		arduino.digital[13].write(0)
 			print 'buttonup'
 		else:
 			gui.event(e) #pass it to the GUI
