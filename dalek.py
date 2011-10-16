@@ -77,10 +77,11 @@ def get_image(camera, headTracking):
     ret, im = camera.read()
     t = clock()
     if (headTracking):
-        grey = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+	smallIm = cv2.resize(im, (160,120))
+        grey = cv2.cvtColor(smallIm, cv2.COLOR_BGR2GRAY)
         grey = cv2.equalizeHist(grey)
 	rects = detect(grey, cascade)
-        draw_rects(im, rects, (0,255,0))
+        draw_rects(im, 4*rects, (0,255,0))
 	#TODO: Also fire servos we need.
     draw_str(im, (20,40), str(readOutputPinsArduino()))
     dt = clock() - t
@@ -168,7 +169,7 @@ lo.add(t,550,500)
 
 #Load information about face detection.
 
-cascade_fn = "./haarcascade_frontalface_alt.xml"
+cascade_fn = "./haarcascade_frontalface_default.xml"
 cascade = cv2.CascadeClassifier(cascade_fn)
 headTracking=False
 
