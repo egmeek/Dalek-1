@@ -20,13 +20,6 @@ from pyk8055 import *
 #Arduino - only one of this and Velleman will be used. Probably...
 import pyduino
 
-#Buttons on wheel:
-#0: X
-#1: O
-#2: SQUARE
-#3: TRIANGLE
-#4: Topleft, unmarked
-
 #There should be a USB camera, but if not use the webcam.
 try:
 	camera = create_capture(1)
@@ -56,6 +49,14 @@ def sendSignalVelleman(signalCode):
 def sendSignalArduino(signalCode):
     print signalCode
 
+def readOutputPinsArduino():
+    output=None
+    if arduino is not None:
+   	output=""
+    	for i in range(3,10):
+		output+=str(arduino.digital[i].read())
+    return output
+
 def sendSignal(signalCode):
     #Flashes signal to Veleman
     sendSignalVelleman(signalCode)
@@ -77,6 +78,7 @@ def get_image():
 	rects = detect(grey, cascade)
         draw_rects(im, rects, (0,255,0))
 	#TODO: Also fire servos we need.
+    draw_str(im, (20,40), str(readOutputPinsArduino()))
     dt = clock() - t
     draw_str(im, (20,20), 'Latency: %.4f ms' % (dt*1000))
     im_rgb=cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
@@ -187,17 +189,29 @@ except IOError:
 
 #Define arduino Pins
 
-TESTPIN = 13
-HEAD_DIRECTION = 10
-HEAD_POWER = 11
+TEST_PIN = 13
+HEAD_DIRECTION = 8
+HEAD_POWER = 7
 EYE_DIRECTION = 12
-EYE_POWER = 13
+EYE_POWER = 11
 
 try:
 	arduino = pyduino.Arduino("/dev/ttyUSB0")
-	set_pin_mode(arduino, TESTPIN, 2) #Set pin 13 to digital output. Useful for testing, as this pin has a LED on it.
-	set_pin_mode(arduino, HEAD_DIRECTION, 2) #Set pin 13 to digital output. Useful for testing, as this pin has a LED on it.
-	set_pin_mode(arduino, HEAD_POWER, 2) #Set pin 13 to digital output. Useful for testing, as this pin has a LED on it.
+	set_pin_mode(arduino, 2, 2)
+	set_pin_mode(arduino, 3, 2)
+	set_pin_mode(arduino, 4, 2)
+	set_pin_mode(arduino, 5, 2)
+	set_pin_mode(arduino, 6, 2)
+	set_pin_mode(arduino, HEAD_POWER, 2) 
+	set_pin_mode(arduino, HEAD_DIRECTION, 2)
+	set_pin_mode(arduino, 9, 2)
+	set_pin_mode(arduino, 10, 2)
+	set_pin_mode(arduino, EYE_POWER, 2) #
+	set_pin_mode(arduino, EYE_DIRECTION, 2) 
+	set_pin_mode(arduino, TEST_PIN, 2) #Set pin 13 to digital output. Useful for testing, as this pin has a LED on it.
+	#Now set low.
+
+
 except IOError:
 	print 'could not find Arduino'
 	arduino=None
@@ -209,15 +223,27 @@ while not done:
 	for e in pygame.event.get():
 		if e.type is pygame.locals.QUIT:
 			done=True
-		elif e.type is pygame.locals.KEYDOWN and e.key == pygame.locals.K_ESCAPE:
-			done=True
-		elif e.type is pygame.locals.KEYDOWN and e.key == pygame.locals.K_SPACE:
-			if arduino is not None:
-				value = -1 * (value-1)
-                        	arduino.digital[13].write(value)
+		elif e.type is pygame.locals.KEYDOWN :
+			print e.key
+			if e.key == pygame.locals.K_ESCAPE:
+				done=True
+			if e.key == pygame.locals.K_SPACE:
+				if arduino is not None:
+					value = -1 * (value-1)
+                        		arduino.digital[TEST_PIN].write(value)
+			if int(e.key) >= 49 and int(e.key)<=58:
+				if arduino is not None:
+					value= arduino.digital[e.key-48].read()
+					value = -1 * (value-1)
+                        		arduino.digital[e.key-48].write(value)
+		
 		elif e.type == pygame.locals.JOYAXISMOTION:
 			x,y = j.get_axis(0), j.get_axis(1)
-			#print 'x and y : ' + str(x) + ' , ' + str(y)
+			x2,y2 = j.get_axis(2), j.get_axis(3)
+			x3,y3 = j.get_axis(4), j.get_axis(5)
+			print 'x and y : ' + str(x) + ' , ' + str(y)
+			print 'x2 and y2 : ' + str(x2) + ' , ' + str(y2)
+			print 'x3 and y3 : ' + str(x3) + ' , ' + str(y3)
 		elif e.type == pygame.locals.JOYBALLMOTION:
 			print 'ballmotion'
 		elif e.type == pygame.locals.JOYHATMOTION:
@@ -255,21 +281,40 @@ while not done:
 
 		elif e.type == pygame.locals.JOYBUTTONDOWN:
 			if e.button ==0 :
-				sendSignal(22)
+				print "Cross"
+                        	arduino.digital[11].write(1)
 			elif e.button == 1:
-				print "pie"
+				print "Circle"
+                        	arduino.digital[11].write(0)
 				#Enable Head Tracking
 				#cb1.click()
 			elif e.button == 2:
+				print "Square"
 				if arduino is not None:
-                        		arduino.digital[13].write(1)
-		#	elif e.button == 3:
-		#		sendSignal(2)	
+                        		arduino.digital[10].write(1)
+			elif e.button == 3:
+				print "Triangle"
+				if arduino is not None:
+                        		arduino.digital[10].write(0)
+			#sendSignal(2)	
 
 			elif e.button == 4:
+				print "White (top left)"
 				playSound(input_file_1.value)
 			elif e.button == 5:
+				print "Black (top right)"
 				playSound(input_file_2.value)
+			elif e.button == 6:
+				print "Back"
+			elif e.button == 7:
+				print "Start"
+			elif e.button == 8:
+				print "8"
+			elif e.button == 9:
+				print "L3"
+			elif e.button == 10:
+				print "R3"
+			
 		elif e.type == pygame.locals.JOYBUTTONUP:
 			if e.button == 2:
 				if arduino is not None:
