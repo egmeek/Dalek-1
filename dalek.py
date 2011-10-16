@@ -24,6 +24,11 @@ import pyduino
 try:
 	camera = create_capture(1)
     	ret, im = camera.read()
+	try:
+		camera2=create_capture(2)
+		ret,im=camera2.read()
+	except:
+		camera2=None
 except:
 	camera = create_capture(0)
 
@@ -67,9 +72,8 @@ def headTrackState(arg):
     global headTracking
     headTracking = btn.value
 
-def get_image():
-    global headTracking
-    global cascade    
+def get_image(camera, headTracking):
+    global cascade
     ret, im = camera.read()
     t = clock()
     if (headTracking):
@@ -116,7 +120,6 @@ def set_pin_mode(arduino, pin, mode):
 
 
 
-fps = 30.0
 pygame.init()
 window = pygame.display.set_mode((0,0),pygame.FULLSCREEN)
 pygame.display.set_caption("DalekCam")
@@ -169,8 +172,6 @@ cascade_fn = "./haarcascade_frontalface_alt.xml"
 cascade = cv2.CascadeClassifier(cascade_fn)
 headTracking=False
 
-
-
 gui.init(lo)
 
 try:
@@ -189,11 +190,11 @@ except IOError:
 
 #Define arduino Pins
 
-TEST_PIN = 13
-HEAD_DIRECTION = 8
 HEAD_POWER = 7
+HEAD_DIRECTION = 8
 EYE_DIRECTION = 12
 EYE_POWER = 11
+TEST_PIN = 13
 
 try:
 	arduino = pyduino.Arduino("/dev/ttyUSB0")
@@ -209,7 +210,7 @@ try:
 	set_pin_mode(arduino, EYE_POWER, 2) #
 	set_pin_mode(arduino, EYE_DIRECTION, 2) 
 	set_pin_mode(arduino, TEST_PIN, 2) #Set pin 13 to digital output. Useful for testing, as this pin has a LED on it.
-	#Now set low.
+	#TODO: Now set low.
 
 
 except IOError:
@@ -217,7 +218,6 @@ except IOError:
 	arduino=None
 
 done=False
-value=0
 
 while not done:
 	for e in pygame.event.get():
@@ -228,9 +228,7 @@ while not done:
 			if e.key == pygame.locals.K_ESCAPE:
 				done=True
 			if e.key == pygame.locals.K_SPACE:
-				if arduino is not None:
-					value = -1 * (value-1)
-                        		arduino.digital[TEST_PIN].write(value)
+				spacepushed=True
 			if int(e.key) >= 49 and int(e.key)<=58:
 				if arduino is not None:
 					value= arduino.digital[e.key-48].read()
@@ -316,19 +314,22 @@ while not done:
 				print "R3"
 			
 		elif e.type == pygame.locals.JOYBUTTONUP:
-			if e.button == 2:
-				if arduino is not None:
-					value = -1 * (value-1)
-                        		arduino.digital[13].write(0)
 			print 'buttonup'
 		else:
 			gui.event(e) #pass it to the GUI
 
-	im = get_image()
+	im = get_image(camera, headTracking)
 	pg_img = pygame.image.frombuffer(im.tostring(), cv.GetSize(im), "RGB")
 	screen.fill((0,0,0))
 	screen.blit(pg_img, (0,0))
+	if camera2 !=None:
+		im2=get_image(camera2, False)
+		pg2_img = pygame.image.frombuffer(im2.tostring(), cv.GetSize(im2), "RGB")
+		screen.blit(pg2_img, (640,240))
+			
 	gui.paint()
 	pygame.display.flip()
-	pygame.time.delay(int(1000 * 1.0/fps))
+	#Note sure why this next line was here by default... perhaps when not
+	#using video inputs? Leaving it here just in case I remember why...
+	#pygame.time.delay(int(1000 * 1.0/fps))
 
